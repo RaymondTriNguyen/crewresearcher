@@ -9,8 +9,6 @@ from datetime import datetime, timezone
 import streamlit as st
 from dotenv import load_dotenv
 
-from crewresearcher import run_company_research
-
 load_dotenv()
 
 st.set_page_config(
@@ -75,10 +73,7 @@ RESEARCH_STEPS = [
 
 
 def _mask_key(value: str) -> str:
-    value = value.strip()
-    if len(value) <= 8:
-        return "••••••••"
-    return f"{value[:4]}…{value[-4:]}"
+    return "*" * min(max(len(value.strip()), 8), 12)
 
 
 def _api_status() -> tuple[bool, bool]:
@@ -101,6 +96,12 @@ def _result_to_markdown(result: object) -> str:
         text = re.sub(r"^```\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
     return text.strip()
+
+
+def _run_company_research(company_name: str, verbose: bool) -> object:
+    from crewresearcher import run_company_research
+
+    return run_company_research(company_name, verbose=verbose)
 
 
 def _init_session() -> None:
@@ -218,7 +219,7 @@ def main() -> None:
                     st.write(f"⏳ {step}")
                 try:
                     os.environ.setdefault("PYTHONUTF8", "1")
-                    result = run_company_research(name, verbose=verbose)
+                    result = _run_company_research(name, verbose=verbose)
                     report = _result_to_markdown(result)
                     if not report:
                         raise RuntimeError("The crew returned an empty report.")
