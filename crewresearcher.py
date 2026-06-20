@@ -18,7 +18,7 @@ def _get_llm() -> LLM:
     api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
     if not api_key:
         raise ValueError(
-            "OPENAI_API_KEY is missing. Add it to your .env file."
+            "OPENAI_API_KEY is missing. Enter it in the app sidebar or add it to your .env file."
         )
     os.environ["OPENAI_API_KEY"] = api_key
     return LLM(model=OPENAI_MODEL, api_key=api_key)
@@ -27,7 +27,7 @@ def _get_llm() -> LLM:
 def _check_serper() -> None:
     if not (os.getenv("SERPER_API_KEY") or "").strip():
         raise ValueError(
-            "SERPER_API_KEY is missing. Add it to your .env file."
+            "SERPER_API_KEY is missing. Enter it in the app sidebar or add it to your .env file."
         )
 
 

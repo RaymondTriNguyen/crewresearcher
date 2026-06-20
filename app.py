@@ -71,14 +71,47 @@ RESEARCH_STEPS = [
     "Executive report",
 ]
 
+API_KEY_FIELDS = {
+    "OPENAI_API_KEY": "OpenAI API key",
+    "SERPER_API_KEY": "Serper API key",
+}
 
-def _mask_key(value: str) -> str:
-    return "*" * min(max(len(value.strip()), 8), 12)
+
+def _session_key_name(env_key: str) -> str:
+    return f"runtime_{env_key.lower()}"
+
+
+def _input_key_name(env_key: str) -> str:
+    return f"input_{env_key.lower()}"
+
+
+def _get_api_key(env_key: str) -> tuple[str, str]:
+    session_value = str(st.session_state.get(_session_key_name(env_key), "")).strip()
+    if session_value:
+        return session_value, "website input"
+
+    env_value = (os.getenv(env_key) or "").strip()
+    if env_value:
+        return env_value, "environment"
+
+    return "", ""
+
+
+def _sync_api_key_inputs() -> None:
+    for env_key in API_KEY_FIELDS:
+        entered = str(st.session_state.get(_input_key_name(env_key), "")).strip()
+        if entered:
+            st.session_state[_session_key_name(env_key)] = entered
+
+    for env_key in API_KEY_FIELDS:
+        value, _ = _get_api_key(env_key)
+        if value:
+            os.environ[env_key] = value
 
 
 def _api_status() -> tuple[bool, bool]:
-    openai_ok = bool((os.getenv("OPENAI_API_KEY") or "").strip())
-    serper_ok = bool((os.getenv("SERPER_API_KEY") or "").strip())
+    openai_ok = bool(_get_api_key("OPENAI_API_KEY")[0])
+    serper_ok = bool(_get_api_key("SERPER_API_KEY")[0])
     return openai_ok, serper_ok
 
 
@@ -116,29 +149,42 @@ def _init_session() -> None:
 
 
 def _render_sidebar() -> tuple[bool, bool, str | None]:
-    openai_ok, serper_ok = _api_status()
-    ready = openai_ok and serper_ok
-
     with st.sidebar:
+        st.markdown("### API keys")
+        for env_key, label in API_KEY_FIELDS.items():
+            st.text_input(
+                label,
+                type="password",
+                key=_input_key_name(env_key),
+                placeholder=f"Paste {env_key}",
+            )
+
+        _sync_api_key_inputs()
+        openai_ok, serper_ok = _api_status()
+        ready = openai_ok and serper_ok
+
+        st.divider()
         st.markdown("### Configuration")
+        openai_source = _get_api_key("OPENAI_API_KEY")[1]
         st.markdown(
             f'<span class="{"status-ok" if openai_ok else "status-missing"}">'
             f'{"✓" if openai_ok else "✗"} OPENAI_API_KEY</span>',
             unsafe_allow_html=True,
         )
         if openai_ok:
-            st.caption(f"Loaded: {_mask_key(os.getenv('OPENAI_API_KEY', ''))}")
+            st.caption(f"Ready from {openai_source}.")
 
+        serper_source = _get_api_key("SERPER_API_KEY")[1]
         st.markdown(
             f'<span class="{"status-ok" if serper_ok else "status-missing"}">'
             f'{"✓" if serper_ok else "✗"} SERPER_API_KEY</span>',
             unsafe_allow_html=True,
         )
         if serper_ok:
-            st.caption(f"Loaded: {_mask_key(os.getenv('SERPER_API_KEY', ''))}")
+            st.caption(f"Ready from {serper_source}.")
 
         if not ready:
-            st.error("Add missing keys to `.env` in the project folder, then refresh.")
+            st.error("Paste the missing keys above. `.env` can still be used as a fallback.")
 
         st.divider()
         st.markdown("### Options")
